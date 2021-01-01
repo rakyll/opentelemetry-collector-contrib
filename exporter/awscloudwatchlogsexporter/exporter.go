@@ -64,11 +64,14 @@ func (e *exporter) Shutdown(ctx context.Context) error {
 }
 
 func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
-	logEvents, _, err := logsToCWLogs(ld)
+	logEvents, dropped, err := logsToCWLogs(ld)
 	if err != nil {
 		return err
 	}
 	if len(logEvents) == 0 {
+		if dropped > 0 {
+			return fmt.Errorf("dropped %d log entries", dropped)
+		}
 		return nil
 	}
 
@@ -81,9 +84,7 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 		LogGroupName:  aws.String(e.config.LogGroupName),
 		LogStreamName: aws.String(e.config.LogStreamName),
 		LogEvents:     logEvents,
-	}
-	if e.seqToken != "" {
-		input.SequenceToken = aws.String(e.seqToken)
+		SequenceToken: aws.String(e.seqToken),
 	}
 	out, err := e.client.PutLogEvents(input)
 	if err != nil {
@@ -133,6 +134,7 @@ func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.I
 	body["severity_number"] = fmt.Sprintf("%d", log.SeverityNumber())
 	body["severity_text"] = log.SeverityText()
 	body["dropped_attributes_count"] = fmt.Sprintf("%d", log.DroppedAttributesCount())
+	// TODO(jbd): add attributes.
 
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
