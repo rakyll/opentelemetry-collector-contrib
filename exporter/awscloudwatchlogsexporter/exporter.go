@@ -26,10 +26,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/pdata"
+	"go.uber.org/zap"
 )
 
 type exporter struct {
 	config *Config
+	logger *zap.Logger
 
 	startOnce sync.Once
 	client    *cloudwatchlogs.CloudWatchLogs // available after startOnce
@@ -56,6 +58,7 @@ func (e *exporter) Start(ctx context.Context, host component.Host) error {
 		}
 		e.client = cloudwatchlogs.New(sess)
 
+		e.logger.Info("Retrieving Cloud Watch sequence token")
 		out, err := e.client.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
 			LogGroupName:        aws.String(e.config.LogGroupName),
 			LogStreamNamePrefix: aws.String(e.config.LogStreamName),
@@ -91,16 +94,17 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 		return nil
 	}
 
-	// TODO(jbd): This will cause a lot of contention if user
-	// doesn't fine tune the queue batching.
+	var seqToken string
 	e.seqTokenMu.Lock()
-	defer e.seqTokenMu.Unlock()
+	seqToken = e.seqToken
+	e.seqTokenMu.Unlock()
 
+	e.logger.Info("Putting log events", zap.Int("num_of_events", len(logEvents)))
 	input := &cloudwatchlogs.PutLogEventsInput{
 		LogGroupName:  aws.String(e.config.LogGroupName),
 		LogStreamName: aws.String(e.config.LogStreamName),
 		LogEvents:     logEvents,
-		SequenceToken: aws.String(e.seqToken),
+		SequenceToken: aws.String(seqToken),
 	}
 	out, err := e.client.PutLogEvents(input)
 	if err != nil {
@@ -109,7 +113,13 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 	if info := out.RejectedLogEventsInfo; info != nil {
 		return fmt.Errorf("log event rejected")
 	}
+	e.logger.Info("Log events are successfully put")
+
+	// TODO(jbd): Investigate how the concurrency model of exporters
+	// impact the use of sequence tokens.
+	e.seqTokenMu.Lock()
 	e.seqToken = *out.NextSequenceToken
+	e.seqTokenMu.Unlock()
 	return nil
 }
 
@@ -151,6 +161,7 @@ func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.I
 	body["severity_number"] = log.SeverityNumber()
 	body["severity_text"] = log.SeverityText()
 	body["dropped_attributes_count"] = log.DroppedAttributesCount()
+	body["flags"] = log.Flags()
 	if traceID := log.TraceID(); traceID.IsValid() {
 		body["trace_id"] = traceID.HexString()
 	}
@@ -160,6 +171,12 @@ func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.I
 	log.Attributes().ForEach(func(k string, v pdata.AttributeValue) {
 		body[k] = attrValue(v)
 	})
+
+	// Add resource attributes.
+	resource.Attributes().ForEach(func(k string, v pdata.AttributeValue) {
+		body["resource_"+k] = attrValue(v)
+	})
+
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
