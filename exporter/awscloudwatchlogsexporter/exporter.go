@@ -16,6 +16,7 @@ package awscloudwatchlogsexporter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -63,7 +64,7 @@ func (e *exporter) Shutdown(ctx context.Context) error {
 }
 
 func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
-	logEvents, err := logsToCWLogs(ld)
+	logEvents, _, err := logsToCWLogs(ld)
 	if err != nil {
 		return err
 	}
@@ -95,13 +96,15 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 	return nil
 }
 
-func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, error) {
+func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, int, error) {
 	n := ld.ResourceLogs().Len()
 	if n == 0 {
-		return []*cloudwatchlogs.InputLogEvent{}, nil
+		return []*cloudwatchlogs.InputLogEvent{}, 0, nil
 	}
 
+	var dropped int
 	out := make([]*cloudwatchlogs.InputLogEvent, 0) // TODO(jbd): set a better capacity
+
 	rls := ld.ResourceLogs()
 	for i := 0; i < rls.Len(); i++ {
 		rl := rls.At(i)
@@ -111,17 +114,32 @@ func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, error) {
 			logs := ils.Logs()
 			for k := 0; k < logs.Len(); k++ {
 				log := logs.At(k)
-				out = append(out, logToCWLog(rl.Resource(), log))
+				event, err := logToCWLog(rl.Resource(), log)
+				if err != nil {
+					dropped++
+				} else {
+					out = append(out, event)
+				}
 			}
 		}
 	}
-	return out, nil
+	return out, dropped, nil
 }
 
-func logToCWLog(resource pdata.Resource, log pdata.LogRecord) *cloudwatchlogs.InputLogEvent {
-	event := &cloudwatchlogs.InputLogEvent{}
-	event.Timestamp = aws.Int64(int64(log.Timestamp()) / (1000 * 1000)) // milliseconds
-	// TODO(jbd): Form the message.
-	event.Message = aws.String("{hello: world}")
-	return event
+func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.InputLogEvent, error) {
+	body := map[string]string{}
+	body["name"] = log.Name()
+	body["body"] = "" // TODO(jbd): Fix.
+	body["severity_number"] = fmt.Sprintf("%d", log.SeverityNumber())
+	body["severity_text"] = log.SeverityText()
+	body["dropped_attributes_count"] = fmt.Sprintf("%d", log.DroppedAttributesCount())
+
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return &cloudwatchlogs.InputLogEvent{
+		Timestamp: aws.Int64(int64(log.Timestamp()) / (1000 * 1000)), // milliseconds
+		Message:   aws.String(string(bodyJSON)),
+	}, nil
 }
