@@ -16,6 +16,7 @@ package awscloudwatchlogsexporter
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -66,27 +67,36 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 	if err != nil {
 		return err
 	}
+	if len(logEvents) == 0 {
+		return nil
+	}
 
 	// TODO(jbd): This will cause a lot of contention if user
 	// doesn't fine tune the queue batching.
 	e.seqTokenMu.Lock()
 	defer e.seqTokenMu.Unlock()
 
-	out, err := e.client.PutLogEvents(&cloudwatchlogs.PutLogEventsInput{
+	input := &cloudwatchlogs.PutLogEventsInput{
 		LogGroupName:  aws.String(e.config.LogGroupName),
 		LogStreamName: aws.String(e.config.LogStreamName),
 		LogEvents:     logEvents,
-		SequenceToken: aws.String(e.seqToken),
-	})
+	}
+	if e.seqToken != "" {
+		input.SequenceToken = aws.String(e.seqToken)
+	}
+	out, err := e.client.PutLogEvents(input)
 	if err != nil {
 		return err
+	}
+	if info := out.RejectedLogEventsInfo; info != nil {
+		return fmt.Errorf("log event rejected")
 	}
 	e.seqToken = *out.NextSequenceToken
 	return nil
 }
 
 func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, error) {
-	n := ld.LogRecordCount()
+	n := ld.ResourceLogs().Len()
 	if n == 0 {
 		return []*cloudwatchlogs.InputLogEvent{}, nil
 	}
@@ -110,7 +120,8 @@ func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, error) {
 
 func logToCWLog(resource pdata.Resource, log pdata.LogRecord) *cloudwatchlogs.InputLogEvent {
 	event := &cloudwatchlogs.InputLogEvent{}
-	event.Timestamp = aws.Int64(int64(log.Timestamp()) / 1000)
+	event.Timestamp = aws.Int64(int64(log.Timestamp()) / (1000 * 1000)) // milliseconds
+	// TODO(jbd): Form the message.
 	event.Message = aws.String("{hello: world}")
 	return event
 }
