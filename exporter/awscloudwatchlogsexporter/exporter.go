@@ -144,14 +144,22 @@ func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, int, error) {
 }
 
 func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.InputLogEvent, error) {
-	body := map[string]string{}
+	// TODO(jbd): Benchmark and improve the allocations.
+	body := map[string]interface{}{}
 	body["name"] = log.Name()
-	body["body"] = "" // TODO(jbd): Fix.
-	body["severity_number"] = fmt.Sprintf("%d", log.SeverityNumber())
+	body["body"] = attrValue(log.Body())
+	body["severity_number"] = log.SeverityNumber()
 	body["severity_text"] = log.SeverityText()
-	body["dropped_attributes_count"] = fmt.Sprintf("%d", log.DroppedAttributesCount())
-	// TODO(jbd): add attributes.
-
+	body["dropped_attributes_count"] = log.DroppedAttributesCount()
+	if traceID := log.TraceID(); traceID.IsValid() {
+		body["trace_id"] = traceID.HexString()
+	}
+	if spanID := log.SpanID(); spanID.IsValid() {
+		body["span_id"] = spanID.HexString()
+	}
+	log.Attributes().ForEach(func(k string, v pdata.AttributeValue) {
+		body[k] = attrValue(v)
+	})
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -160,4 +168,34 @@ func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.I
 		Timestamp: aws.Int64(int64(log.Timestamp()) / (1000 * 1000)), // milliseconds
 		Message:   aws.String(string(bodyJSON)),
 	}, nil
+}
+
+func attrValue(value pdata.AttributeValue) interface{} {
+	switch value.Type() {
+	case pdata.AttributeValueINT:
+		return value.IntVal()
+	case pdata.AttributeValueBOOL:
+		return value.BoolVal()
+	case pdata.AttributeValueDOUBLE:
+		return value.DoubleVal()
+	case pdata.AttributeValueSTRING:
+		return value.StringVal()
+	case pdata.AttributeValueMAP:
+		values := map[string]interface{}{}
+		value.MapVal().ForEach(func(k string, v pdata.AttributeValue) {
+			values[k] = attrValue(v)
+		})
+		return values
+	case pdata.AttributeValueARRAY:
+		arrayVal := value.ArrayVal()
+		values := make([]interface{}, arrayVal.Len())
+		for i := 0; i < arrayVal.Len(); i++ {
+			values[i] = attrValue(arrayVal.At(i))
+		}
+		return values
+	case pdata.AttributeValueNULL:
+		return nil
+	default:
+		return nil
+	}
 }
