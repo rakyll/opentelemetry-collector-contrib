@@ -49,5 +49,5 @@ func createLogsExporter(ctx context.Context, params component.ExporterCreatePara
 	if !ok {
 		return nil, errors.New("invalid configuration type")
 	}
-	return &exporter{config: config}, nil
+	return &exporter{config: config, logger: params.Logger}, nil
 }
