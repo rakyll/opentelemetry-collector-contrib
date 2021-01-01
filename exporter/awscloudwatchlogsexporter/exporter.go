@@ -17,6 +17,7 @@ package awscloudwatchlogsexporter
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -54,6 +55,21 @@ func (e *exporter) Start(ctx context.Context, host component.Host) error {
 			return
 		}
 		e.client = cloudwatchlogs.New(sess)
+
+		out, err := e.client.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
+			LogGroupName:        aws.String(e.config.LogGroupName),
+			LogStreamNamePrefix: aws.String(e.config.LogStreamName),
+		})
+		if err != nil {
+			startErr = err
+			return
+		}
+		if len(out.LogStreams) == 0 {
+			startErr = errors.New("cannot find log group and stream")
+			return
+		}
+		stream := out.LogStreams[0]
+		e.seqToken = *stream.UploadSequenceToken // no need to guard
 	})
 	return startErr
 }
