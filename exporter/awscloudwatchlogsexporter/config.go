@@ -28,7 +28,7 @@ type Config struct {
 	// that share the same source.
 	LogStreamName string `mapstructure:"log_stream_name"`
 
-	// Region is the AWS region where the metric logs are sent to.
+	// Region is the AWS region where the logs are sent to.
 	// Optional.
 	Region string `mapstructure:"region"`
 
