@@ -73,6 +73,16 @@ func TestLogToCWLog(t *testing.T) {
 	}
 }
 
+func BenchmarkLogToCWLog(b *testing.B) {
+	b.ReportAllocs()
+
+	resource := testResource()
+	log := testLogRecord()
+	for i := 0; i < b.N; i++ {
+		logToCWLog(resource, log)
+	}
+}
+
 func testResource() pdata.Resource {
 	resource := pdata.NewResource()
 	resource.Attributes().InsertString("host", "abc123")
