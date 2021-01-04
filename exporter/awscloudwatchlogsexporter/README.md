@@ -33,6 +33,6 @@ exporters:
     log_group_name: "testing-logs"
     log_stream_name: "testing-integrations-stream"
     region: "us-east-1"
-    max_retries: 5
     endpoint: "logs.us-east-1.amazonaws.com"
+    max_retries: 3
 ```
