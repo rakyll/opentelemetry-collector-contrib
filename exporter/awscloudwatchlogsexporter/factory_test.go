@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/collector/config/configmodels"
 )
 
-func TestCreateDefaultConfig(t *testing.T) {
+func TestDefaultConfig_exporterSettings(t *testing.T) {
 	config := createDefaultConfig().(*Config)
 	want := &Config{
 		ExporterSettings: configmodels.ExporterSettings{
