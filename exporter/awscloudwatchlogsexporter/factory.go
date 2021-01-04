@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package awscloudwatchlogsexporter provides a logging exporter for the OpenTelemetry collector.
+// This package is subject to change and may break configuration settings and behavior.
 package awscloudwatchlogsexporter
 
 import (
@@ -47,7 +49,7 @@ func createDefaultConfig() configmodels.Exporter {
 func createLogsExporter(ctx context.Context, params component.ExporterCreateParams, cfg configmodels.Exporter) (component.LogsExporter, error) {
 	config, ok := cfg.(*Config)
 	if !ok {
-		return nil, errors.New("invalid configuration type")
+		return nil, errors.New("invalid configuration type; can't cast to awscloudwatchlogsexporter.Config")
 	}
 	return &exporter{config: config, logger: params.Logger}, nil
 }
