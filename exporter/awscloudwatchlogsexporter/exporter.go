@@ -157,6 +157,7 @@ func logsToCWLogs(ld pdata.Logs) ([]*cloudwatchlogs.InputLogEvent, int, error) {
 
 func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.InputLogEvent, error) {
 	// TODO(jbd): Benchmark and improve the allocations.
+	// Evaluate go.elastic.co/fastjson as a replacement for encoding/json.
 	body := map[string]interface{}{}
 	body["name"] = log.Name()
 	body["body"] = attrValue(log.Body())
