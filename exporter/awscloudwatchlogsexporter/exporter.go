@@ -58,7 +58,7 @@ func (e *exporter) Start(ctx context.Context, host component.Host) error {
 		}
 		e.client = cloudwatchlogs.New(sess)
 
-		e.logger.Info("Retrieving Cloud Watch sequence token")
+		e.logger.Debug("Retrieving Cloud Watch sequence token")
 		out, err := e.client.DescribeLogStreams(&cloudwatchlogs.DescribeLogStreamsInput{
 			LogGroupName:        aws.String(e.config.LogGroupName),
 			LogStreamNamePrefix: aws.String(e.config.LogStreamName),
@@ -99,7 +99,7 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 	seqToken = e.seqToken
 	e.seqTokenMu.Unlock()
 
-	e.logger.Info("Putting log events", zap.Int("num_of_events", len(logEvents)))
+	e.logger.Debug("Putting log events", zap.Int("num_of_events", len(logEvents)))
 	input := &cloudwatchlogs.PutLogEventsInput{
 		LogGroupName:  aws.String(e.config.LogGroupName),
 		LogStreamName: aws.String(e.config.LogStreamName),
@@ -113,7 +113,7 @@ func (e *exporter) ConsumeLogs(ctx context.Context, ld pdata.Logs) error {
 	if info := out.RejectedLogEventsInfo; info != nil {
 		return fmt.Errorf("log event rejected")
 	}
-	e.logger.Info("Log events are successfully put")
+	e.logger.Debug("Log events are successfully put")
 
 	// TODO(jbd): Investigate how the concurrency model of exporters
 	// impact the use of sequence tokens.

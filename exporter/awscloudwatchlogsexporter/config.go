@@ -34,7 +34,7 @@ type Config struct {
 
 	// Endpoint is the CloudWatch Logs service endpoint which the requests
 	// are forwarded to. https://docs.aws.amazon.com/general/latest/gr/cwl_region.html
-	// e.g. logs.us-east-1.amazonaws.com and logs-fips.us-east-1.amazonaws.com
+	// e.g. logs.us-east-1.amazonaws.com
 	// Optional.
 	Endpoint string `mapstructure:"endpoint"`
 }
