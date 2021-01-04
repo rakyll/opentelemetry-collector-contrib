@@ -41,16 +41,15 @@ type exporter struct {
 }
 
 func (e *exporter) Start(ctx context.Context, host component.Host) error {
-	awsConfig := &aws.Config{}
-	if e.config.Region != "" {
-		awsConfig.Region = aws.String(e.config.Region)
-	}
-	if e.config.Endpoint != "" {
-		awsConfig.Endpoint = aws.String(e.config.Endpoint)
-	}
-
 	var startErr error
 	e.startOnce.Do(func() {
+		awsConfig := &aws.Config{}
+		if e.config.Region != "" {
+			awsConfig.Region = aws.String(e.config.Region)
+		}
+		if e.config.Endpoint != "" {
+			awsConfig.Endpoint = aws.String(e.config.Endpoint)
+		}
 		sess, err := session.NewSession(awsConfig)
 		if err != nil {
 			startErr = err
