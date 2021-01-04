@@ -29,6 +29,19 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	jsonKeyName                   = "name"
+	jsonKeyBody                   = "body"
+	jsonKeySeverityNumber         = "severity_number"
+	jsonKeySeverityText           = "severity_text"
+	jsonKeyDroppedAttributesCount = "dropped_attributes_count"
+	jsonKeyFlags                  = "flags"
+	jsonKeyTraceID                = "trace_id"
+	jsonKeySpanID                 = "span_id"
+	jsonKeyAttributes             = "attributes"
+	jsonKeyPrefixResource         = "resource_"
+)
+
 type exporter struct {
 	config *Config
 	logger *zap.Logger
@@ -159,25 +172,27 @@ func logToCWLog(resource pdata.Resource, log pdata.LogRecord) (*cloudwatchlogs.I
 	// TODO(jbd): Benchmark and improve the allocations.
 	// Evaluate go.elastic.co/fastjson as a replacement for encoding/json.
 	body := map[string]interface{}{}
-	body["name"] = log.Name()
-	body["body"] = attrValue(log.Body())
-	body["severity_number"] = log.SeverityNumber()
-	body["severity_text"] = log.SeverityText()
-	body["dropped_attributes_count"] = log.DroppedAttributesCount()
-	body["flags"] = log.Flags()
+	body[jsonKeyName] = log.Name()
+	body[jsonKeyBody] = attrValue(log.Body())
+	body[jsonKeySeverityNumber] = log.SeverityNumber()
+	body[jsonKeySeverityText] = log.SeverityText()
+	body[jsonKeyDroppedAttributesCount] = log.DroppedAttributesCount()
+	body[jsonKeyFlags] = log.Flags()
 	if traceID := log.TraceID(); traceID.IsValid() {
-		body["trace_id"] = traceID.HexString()
+		body[jsonKeyTraceID] = traceID.HexString()
 	}
 	if spanID := log.SpanID(); spanID.IsValid() {
-		body["span_id"] = spanID.HexString()
+		body[jsonKeySpanID] = spanID.HexString()
 	}
+	attrs := make(map[string]interface{}, log.Attributes().Len())
 	log.Attributes().ForEach(func(k string, v pdata.AttributeValue) {
-		body[k] = attrValue(v)
+		attrs[k] = attrValue(v)
 	})
+	body[jsonKeyAttributes] = attrs
 
 	// Add resource attributes.
 	resource.Attributes().ForEach(func(k string, v pdata.AttributeValue) {
-		body["resource_"+k] = attrValue(v)
+		body[jsonKeyPrefixResource+k] = attrValue(v)
 	})
 
 	bodyJSON, err := json.Marshal(body)
