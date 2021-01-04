@@ -50,6 +50,9 @@ func (e *exporter) Start(ctx context.Context, host component.Host) error {
 		if e.config.Endpoint != "" {
 			awsConfig.Endpoint = aws.String(e.config.Endpoint)
 		}
+		if e.config.MaxRetries > 0 {
+			awsConfig.MaxRetries = aws.Int(e.config.MaxRetries)
+		}
 		sess, err := session.NewSession(awsConfig)
 		if err != nil {
 			startErr = err
