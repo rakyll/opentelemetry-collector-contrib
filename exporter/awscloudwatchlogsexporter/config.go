@@ -37,6 +37,9 @@ type Config struct {
 	// e.g. logs.us-east-1.amazonaws.com
 	// Optional.
 	Endpoint string `mapstructure:"endpoint"`
+
+	// MaxRetries is the maximum number of retries before abandoning an attempt to post data.
+	MaxRetries int `mapstructure:"max_retries"`
 }
 
 // TODO(jbd): Add ARN role to config.
