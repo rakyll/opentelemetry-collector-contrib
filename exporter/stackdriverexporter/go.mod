@@ -6,7 +6,7 @@ require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v0.13.0
 	github.com/census-instrumentation/opencensus-proto v0.3.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	go.opencensus.io v0.22.5
 	go.opentelemetry.io/collector v0.15.1-0.20201125171618-60498105d42f
 	go.opentelemetry.io/otel v0.13.0
