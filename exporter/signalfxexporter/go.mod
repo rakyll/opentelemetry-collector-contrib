@@ -8,9 +8,10 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/common v0.0.0-00010101000000-000000000000
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/splunk v0.0.0-00010101000000-000000000000
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sclusterreceiver v0.0.0-00010101000000-000000000000
-	github.com/shirou/gopsutil v3.20.10+incompatible
+	github.com/shirou/gopsutil v3.21.2+incompatible
 	github.com/signalfx/com_signalfx_metrics_protobuf v0.0.2
 	github.com/stretchr/testify v1.6.1
+	github.com/tklauser/go-sysconf v0.3.4 // indirect
 	go.opentelemetry.io/collector v0.15.1-0.20201125171618-60498105d42f
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.16.0
