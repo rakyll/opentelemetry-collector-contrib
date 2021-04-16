@@ -66,6 +66,11 @@ exporters:
     write_buffer_size: 524288
     headers:
         X-Scope-OrgID: 234
+<<<<<<< HEAD
+=======
+    aws_auth:
+        region: "us-west-2"
+>>>>>>> Fix typo
     external_labels:
         key1: value1
         key2: value2
