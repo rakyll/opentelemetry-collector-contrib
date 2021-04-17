@@ -67,10 +67,13 @@ exporters:
     headers:
         X-Scope-OrgID: 234
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     aws_auth:
         region: "us-west-2"
 >>>>>>> Fix typo
+=======
+>>>>>>> Improvements to the awsprometheusremotewriteexporter
     external_labels:
         key1: value1
         key2: value2
